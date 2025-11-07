@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>เว็บขายของ (2,000 ช่อง)</title>
+    <style>
+        :root{--gap:12px;--card-bg:#fff;--card-border:#eee}
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',sans-serif;margin:0;background:#f5f6fa;color:#111}
+        header{padding:18px 16px;background:#0b5;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+        header h1{margin:0;font-size:18px;color:#003}
+        .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+        .controls input,.controls select{padding:6px 8px;border-radius:6px;border:1px solid rgba(0,0,0,0.12)}
+        main{padding:16px}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--gap)}
+        .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-height:220px}
+        .thumb{height:120px;background:linear-gradient(135deg,#ffd86b,#ff6b6b);display:flex;align-items:flex-end;justify-content:center;padding:8px;color:#222;font-weight:700;font-size:18px}
+        .meta{padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1}
+        .title{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .price{font-weight:700;color:#b12704}
+        .actions{display:flex;gap:8px}
+        .btn{flex:1;padding:8px;border-radius:6px;border:0;background:#036;color:#fff;cursor:pointer}
+        .btn.secondary{background:#eee;color:#111}
+        .pager{display:flex;gap:6px;align-items:center;justify-content:center;padding:12px 0}
+        .page-btn{padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
+        .page-btn.active{background:#036;color:#fff;border-color:#036}
+        footer{padding:14px;text-align:center;color:#666}
+        @media (max-width:420px){.thumb{height:100px;font-size:16px}}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>เว็บทอง — ร้านตัวอย่าง (2,000 ช่อง)</h1>
+        <div class="controls">
+            <input id="search" placeholder="ค้นหาสินค้า..." />
+            <select id="perPage">
+                <option value="12">12 / หน้า</option>
+                <option value="24" selected>24 / หน้า</option>
+                <option value="48">48 / หน้า</option>
+                <option value="96">96 / หน้า</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <div id="grid" class="grid" aria-live="polite"></div>
+        <div id="pager" class="pager"></div>
+    </main>
+
+    <footer>ตัวอย่างระบบแสดงสินค้า 1–2000</footer>
+
+    <script>
+        // สร้างข้อมูลตัวอย่าง 2000 รายการ
+        const PRODUCTS_TOTAL = 2000;
+        const products = Array.from({length: PRODUCTS_TOTAL}, (_, i) => {
+            const id = i + 1;
+            const price = (Math.floor(Math.random()*9000)+100).toLocaleString('th-TH');
+            return {
+                id,
+                title: `สินค้า ${id}`,
+                price: `${price} บาท`,
+                // ใช้สีพื้นหลังแตกต่างกันเพื่อเป็นตัวแทนรูป
+                colorSeed: (id % 6)
+            };
+        });
+
+        // DOM
+        const grid = document.getElementById('grid');
+        const pager = document.getElementById('pager');
+        const searchInput = document.getElementById('search');
+        const perPageSelect = document.getElementById('perPage');
+
+        let state = {
+            page: 1,
+            perPage: parseInt(perPageSelect.value, 10),
+            query: ''
+        };
+
+        function filteredData() {
+            const q = state.query.trim().toLowerCase();
+            if (!q) return products;
+            return products.filter(p => p.title.toLowerCase().includes(q));
+        }
+
+        function totalPages(count, perPage) {
+            return Math.max(1, Math.ceil(count / perPage));
+        }
+
+        function renderGrid() {
+            const data = filteredData();
+            const total = data.length;
+            const pages = totalPages(total, state.perPage);
+            if (state.page > pages) state.page = pages;
+
+            const start = (state.page - 1) * state.perPage;
+            const pageItems = data.slice(start, start + state.perPage);
+
+            grid.innerHTML = pageItems.map(p => cardHTML(p)).join('');
+            renderPager(total, pages);
+        }
+
+        function cardHTML(p) {
+            // simple gradient choices
+            const gradients = [
+                'linear-gradient(135deg,#ffd86b,#ff6b6b)',
+                'linear-gradient(135deg,#a0c4ff,#bdb2ff)',
+                'linear-gradient(135deg,#caffbf,#73ffad)',
+                'linear-gradient(135deg,#ffadad,#ffd6a5)',
+                'linear-gradient(135deg,#9bf6ff,#a0e7e5)',
+                'linear-gradient(135deg,#ffd6ff,#cdb4db)'
+            ];
+            const bg = gradients[p.colorSeed % gradients.length];
+            return `
+                <article class="card" data-id="${p.id}">
+                    <div class="thumb" style="background:${bg}">
+                        <span>สินค้า ${p.id}</span>
+                    </div>
+                    <div class="meta">
+                        <div class="title">${escapeHtml(p.title)}</div>
+                        <div class="price">${escapeHtml(p.price)}</div>
+                        <div class="actions">
+                            <button class="btn add" data-id="${p.id}">ใส่ตะกร้า</button>
+                            <button class="btn secondary view" data-id="${p.id}">ดู</button>
+                        </div>
+                    </div>
+                </article>`;
+        }
+
+        function renderPager(totalItems, pages) {
+            const current = state.page;
+            const maxButtons = 7;
+            let start = Math.max(1, current - Math.floor(maxButtons/2));
+            let end = start + maxButtons - 1;
+            if (end > pages) { end = pages; start = Math.max(1, end - maxButtons + 1); }
+
+            let html = '';
+            html += `<button class="page-btn" data-page="1">⏮</button>`;
+            html += `<button class="page-btn" data-page="${Math.max(1, current-1)}">‹</button>`;
+
+            for (let p = start; p <= end; p++) {
+                html += `<button class="page-btn ${p===current? 'active' : ''}" data-page="${p}">${p}</button>`;
+            }
+
+            html += `<button class="page-btn" data-page="${Math.min(pages, current+1)}">›</button>`;
+            html += `<button class="page-btn" data-page="${pages}">⏭</button>`;
+            html += ` <span style="margin-left:12px;color:#666">แสดง ${Math.min(totalItems, (current-1)*state.perPage+1)} - ${Math.min(totalItems, current*state.perPage)} จาก ${totalItems} รายการ</span>`;
+            pager.innerHTML = html;
+        }
+
+        // helpers
+        function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+        // Events
+        pager.addEventListener('click', (e) => {
+            const btn = e.target.closest('.page-btn');
+            if (!btn) return;
+            const p = Number(btn.dataset.page);
+            if (!isNaN(p)) { state.page = p; renderGrid(); window.scrollTo({top:0,behavior:'smooth'}); }
+        });
+
+        grid.addEventListener('click', (e) => {
+            const add = e.target.closest('.add');
+            const view = e.target.closest('.view');
+            if (add) {
+                const id = add.dataset.id;
+                alert(`เพิ่มสินค้า ${id} ไปยังตะกร้า (ตัวอย่าง)`);
+            } else if (view) {
+                const id = view.dataset.id;
+                alert(`แสดงรายละเอียดสินค้า ${id} (ตัวอย่าง)`);
+            }
+        });
+
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                state.query = e.target.value;
+                state.page = 1;
+                renderGrid();
+            }, 220);
+        });
+
+        perPageSelect.addEventListener('change', (e) => {
+            state.perPage = parseInt(e.target.value, 10);
+            state.page = 1;
+            renderGrid();
+        });
+
+        // initial render
+        renderGrid();
+    </script>
+</body>
+</html>
